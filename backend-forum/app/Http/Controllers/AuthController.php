@@ -16,8 +16,12 @@ class AuthController extends Controller
         ]);
 
         if(Auth::attempt($validated)) {
+            $user = User::where('email', $request->email)->first();
+            $authToken = $user->createToken('auth-token')->plainTextToken;
+
             return response()->json([
-                'message' => 'Login successful'
+                'message' => 'Login successful',
+                'access_token' => $authToken,
             ], 200);
         }
 
@@ -55,6 +59,58 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Registration successful'
+        ], 200);
+    }
+
+    public function updateEmail(Request $request, $id) {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'unique:users,email']
+        ]);
+
+        $user = User::find($id);
+        $user->email = $validated['email'];
+        $user->save();
+
+        return response()->json([
+            'message' => 'Email updated successfully'
+        ], 200);
+    }
+
+    public function changePassword(Request $request) {
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = Auth::user();
+
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'Current password is incorrect'
+            ], 400);
+        }
+
+        // Update the user's password
+        $user->password = Hash::make($validated['new_password']);
+        $user->save();
+
+        return response()->json([
+            'message' => 'Password updated successfully'
+        ], 200);
+    }
+
+
+    public function getUser(Request $request) {
+        $user = $request->user();
+        return response()->json([
+            'user' => $user
+        ], 200);
+    }
+
+    public function getAllUser() {
+        $users = User::all();
+        return response()->json([
+            'users' => $users
         ], 200);
     }
 }
