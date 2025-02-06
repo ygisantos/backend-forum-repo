@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 use App\Models\Forum;
 use App\Models\User;
+use App\Models\Liked;
 
 class ForumController extends Controller
 {
@@ -53,6 +54,43 @@ class ForumController extends Controller
             return response()->json(['message'=> 'successfully deleted'],200);
         } catch (\Exception $e) {
             return response()->json(['errors'=> $e->getMessage()], 204);
+        }
+    }
+
+    public function addLike(Request $request) {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $forum = Forum::findOrFail($request->id);
+        $liked = Liked::firstOrCreate(['user_id' => $user->id, 'forum_id' => $forum->id]);
+
+        if ($liked->wasRecentlyCreated) {
+            $forum->likes += 1;
+            $forum->save();
+            return response()->json(['message' => 'Like added successfully'], 200);
+        } else {
+            return response()->json(['message' => 'You have already liked this forum'], 400);
+        }
+    }
+
+    public function removeLike(Request $request) {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $forum = Forum::findOrFail($request->id);
+        $liked = Liked::where(['user_id' => $user->id, 'forum_id' => $forum->id])->first();
+
+        if ($liked) {
+            $liked->delete();
+            $forum->likes -= 1;
+            $forum->save();
+            return response()->json(['message' => 'Like removed successfully'], 200);
+        } else {
+            return response()->json(['message' => 'You have not liked this forum'], 400);
         }
     }
 }
